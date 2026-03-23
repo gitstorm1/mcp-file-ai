@@ -3,23 +3,26 @@
     "version": "1.0.0",
     "type": "module",
     "main": "dist/index.js",
+    "types": "dist/index.d.ts",
     "engines": {
         "node": ">=24.0.0"
     },
     "scripts": {
-        "build": "tsc",
-        "start": "node dist/index.js",
-        "dev": "node --watch --loader ts-node/esm src/index.ts",
+        "build": "mastra build",
+        "start": "mastra run",
+        "dev": "mastra dev",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "dependencies": {
-        "@modelcontextprotocol/sdk": "^1.27.1",
         "@google/generative-ai": "^0.21.0",
-        "zod": "^3.23.8",
-        "dotenv": "^16.4.5"
+        "@mastra/core": "^1.15.0",
+        "@modelcontextprotocol/sdk": "^1.27.1",
+        "dotenv": "^16.4.5",
+        "zod": "^4.3.6"
     },
     "devDependencies": {
         "@types/node": "^25.5.0",
+        "mastra": "^1.3.14",
         "ts-node": "^10.9.2",
         "typescript": "^5.9.3"
     }

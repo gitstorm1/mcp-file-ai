@@ -23,10 +23,10 @@ const SANDBOX_DIR = path.resolve(process.cwd(), "sandbox");
 server.registerTool(
     "generate_structure",
     {
-        description: "Generate files and folders based on a natural language description using Gemini 3.",
-        inputSchema: {
+        description: "Create new files and folders. Note: This will overwrite existing files with the same name. It is recommended to check the directory structure first if unsure.",
+        inputSchema: z.object({
             prompt: z.string().describe("The structure to build (e.g., 'A simple React app structure')"),
-        }
+        })
     },
     async ({ prompt }) => {
         const systemInstruction = `
@@ -71,11 +71,60 @@ server.registerTool(
     }
 );
 
+server.registerTool(
+    "summarize_directory",
+    {
+        description: "List all files in the sandbox. Use this BEFORE generating new files to avoid naming conflicts or to understand the existing project structure.",
+        inputSchema: z.object({
+            directoryPath: z.string().optional().describe("Relative path inside the sandbox (e.g., 'src' or 'components')"),
+        })
+    },
+    async ({ directoryPath = "" }) => {
+        try {
+            // 1. Resolve and prevent path traversal
+            const safeRelativePath = path.normalize(directoryPath).replace(/^(\.\.(\/|\\|$))+/, "");
+            const fullPath = path.join(SANDBOX_DIR, safeRelativePath);
+
+            // 2. Verify it's still inside the sandbox
+            if (!fullPath.startsWith(SANDBOX_DIR)) {
+                throw new Error("Access denied: Path is outside the sandbox.");
+            }
+
+            const stats = await fs.stat(fullPath);
+
+            if (stats.isDirectory()) {
+                const entries = await fs.readdir(fullPath, { withFileTypes: true });
+
+                // 3. Create a more useful summary (Types and Names)
+                const summary = entries.map(entry => {
+                    const type = entry.isDirectory() ? "[DIR]" : "[FILE]";
+                    return `${type} ${entry.name}`;
+                }).join("\n");
+
+                return {
+                    content: [{ type: "text", text: `Summary of (the following path is relative to the sandbox directory) ${safeRelativePath || "root"}:\n\n${summary}` }]
+                };
+            } else {
+                return {
+                    content: [{ type: "text", text: `The path (the following path is relative to the sandbox directory) '${safeRelativePath}' is a file, not a directory.` }]
+                };
+            }
+        } catch (error: any) {
+            return {
+                isError: true,
+                content: [{ type: "text", text: `Error: ${error.message}` }]
+            };
+        }
+    }
+);
+
 // 4. Connect using Stdio (Standard for local AI tools)
 async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error("MCP File AI (v2.0) is active.");
 }
 
-main().catch(console.error);
+main().catch((e) => {
+    console.error("MCP File AI (v2.0) failed to start:", e);
+    process.exit(1);
+});
